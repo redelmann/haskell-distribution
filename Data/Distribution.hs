@@ -10,6 +10,7 @@
 module Data.Distribution
     ( -- * Distribution
       Distribution
+    , toList
     , Probability
       -- ** Creation
     , always
@@ -25,7 +26,9 @@ module Data.Distribution
     , on
       -- ** Measures
     , size
+    , support
     , probability
+    , probabilityAt
     , expectation
     , variance
     , standardDeviation
@@ -33,9 +36,12 @@ module Data.Distribution
     , median
     , modes
     , quantile
-      -- ** Transformation to lists
-    , toList
+      -- ** Aggregation
+    , Aggregator
     , cumulative
+    , complementaryCumulative
+    , decreasing
+    , complementaryDecreasing
     ) where
 
 import Control.Arrow (second)
@@ -44,13 +50,14 @@ import Data.List (foldl', groupBy, sortBy, find)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Ord (comparing)
+import Data.Set (Set)
 
 -- | Distribution over values of type @a@.
 --
 --   Due to their internal representations, @Distribution@ can not have
 --   @Functor@ or @Monad@ instances.
---   However, @select@ is the equivalent of @fmap@ for distributions
---   and @always@ and @andThen@ are respectively the equivalent of @return@
+--   However, 'select' is the equivalent of @fmap@ for distributions
+--   and 'always' and 'andThen' are respectively the equivalent of @return@
 --   and @>>=@.
 newtype Distribution a = Distribution { getDistribution :: Map a Probability }
     deriving Eq
@@ -58,7 +65,7 @@ newtype Distribution a = Distribution { getDistribution :: Map a Probability }
 instance Show a => Show (Distribution a) where
     show d = "fromList " ++ show (toList d)
 
--- A distribution @d1@ is less than some other distribution @d2@
+-- A distribution @d1@ is less than some other distribution @d2@
 -- if the smallest value that has a different probability
 -- in @d1@ and @d2@ is more probable in @d1@.
 --
@@ -141,6 +148,13 @@ instance (Ord a, Floating a) => Floating (Distribution a) where
     asinh = select asinh
     atanh = select atanh
     acosh = select acosh
+
+
+-- | Converts the distribution to a list of increasing values whose probability
+--   is greater than @0@. To each value is associated its probability.
+toList :: Distribution a -> [(a, Probability)]
+toList (Distribution xs) = Map.toAscList xs
+
 
 -- | Probability. Should be between 0 and 1.
 type Probability = Rational
@@ -314,6 +328,12 @@ probability :: (a -> Bool) -> Distribution a -> Probability
 probability f (Distribution xs) = sum $ Map.elems $
     Map.filterWithKey (const . f) xs
 
+-- | Probability of a given value.
+probabilityAt :: Ord a => a -> Distribution a -> Probability
+probabilityAt x (Distribution xs) = case Map.lookup x xs of
+    Just p -> p
+    Nothing -> 0
+
 -- | Returns the expectation, or mean, of a distribution.
 --
 -- >>> expectation $ uniform [0, 1]
@@ -365,7 +385,7 @@ standardDeviation = sqrt . fromRational . variance
 --   >>> quantile 0.5 $ fromList []
 --   Nothing
 quantile :: Probability -> Distribution a -> Maybe a
-quantile p d = case dropWhile ((< r) . snd) $ cumulative d of
+quantile p d = case dropWhile ((< r) . snd) $ cumulative $ toList d of
     (x, _) : _ -> Just x
     _          -> Nothing
   where
@@ -393,17 +413,32 @@ modes (Distribution xs) = map fst $ filter ((m ==) . snd) ys
     ys = Map.toAscList xs
     m = maximum $ Map.elems xs
 
+-- | Values in the distribution with non-zero probability.
+support :: Distribution a -> Set a
+support (Distribution xs) = Map.keysSet xs
 
--- Convertions to lists
+
+-- Aggregation
 
 
--- | Converts the distribution to a list of increasing values whose probability
---   is greater than @0@. To each value is associated its probability.
-toList :: Distribution a -> [(a, Probability)]
-toList (Distribution xs) = Map.toAscList xs
+-- | Functions that aggregate the probabilities of distributions
+--   (as an ascending list of elements tagged with their probability).
+type Aggregator a = [(a, Probability)] -> [(a, Probability)]
 
--- | Converts the distribution to a list of increasing values whose probability
---   is greater than @0@. To each value is associated the probability to be
---   less or equal to it.
-cumulative :: Distribution a -> [(a, Probability)]
-cumulative d = scanl1 (\ (_, a) (x, p) -> (x, p + a)) $ toList d
+-- | Associates to each value the probability to be less or equal to it.
+cumulative :: Aggregator a
+cumulative = scanl1 (\ (_, a) (x, p) -> (x, p + a))
+
+-- | Associates to each value the probability to be greater to it.
+complementaryCumulative :: Aggregator a
+complementaryCumulative = map (second (1 -)) . cumulative
+
+-- | Associates to each value the probability to be greater or equal to it.
+decreasing :: Aggregator a
+decreasing xs = zip vs (1 : ps)
+  where
+    (vs, ps) = unzip $ complementaryCumulative xs
+
+-- | Associates to each value the probability to be less than it.
+complementaryDecreasing :: Aggregator a
+complementaryDecreasing = map (second (1 -)) . decreasing
