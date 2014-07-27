@@ -38,25 +38,35 @@ import Data.Distribution
 data PlotOptions a = PlotOptions
     { getAggregator :: Aggregator
       -- ^ Aggregator to apply on the values.
+      --   Defaults to @id@.
     , getTitle :: String
       -- ^ Title of the plot.
+      --   Defaults to @""@.
     , getLabels :: [String]
       -- ^ Labels of the distributions.
+      --   Defaults to @[]@.
     , getColors :: [AlphaColour Double]
       -- ^ Colors for the distributions.
+      --   Defaults to 'defaultColorSeq'.
     , getDisplayer :: a -> String
       -- ^ How to display the values.
+      --   Defaults to @show@.
     , getDimensions :: (Int, Int)
       -- ^ Dimension of the output image.
+      --   Defaults to @(600, 400)@.
     , getFormat :: FileFormat
       -- ^ Format of the output image.
+      --   Defaults to @PNG@.
     , getExtraDomain :: Set a
       -- ^ Values to display unconditionally.
+      --   Defaults to the empty set.
     , getStacked :: Bool
       -- ^ Whether to stack bars.
+      --   Defaults to @False@.
     , getInversed :: Bool
       -- ^ @True@ to put distributions on the x-axis,
       --   @False@ to put values on the x-axis.
+      --   Defaults to @False@.
     }
 
 instance Show a => Default (PlotOptions a) where
