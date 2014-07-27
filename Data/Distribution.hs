@@ -16,6 +16,7 @@ module Data.Distribution
     , always
     , uniform
     , fromList
+    , chance
     , trials
     , times
       -- ** Transformation
@@ -38,10 +39,11 @@ module Data.Distribution
     , quantile
       -- ** Aggregation
     , Aggregator
+    , aggregateWith
+      -- *** Useful aggregators
     , cumulative
-    , complementaryCumulative
     , decreasing
-    , complementaryDecreasing
+    , complementary
     ) where
 
 import Control.Arrow (second)
@@ -198,6 +200,12 @@ uniform :: (Ord a) => [a] -> Distribution a
 uniform xs = fromList $ fmap (\ x -> (x, p)) xs
   where
     p = 1 / toRational (length xs)
+
+-- | @True@ with given probability and @False@ with complementary probability.
+chance :: Real p => p -> Distribution Bool
+chance p = fromList [(False, 1 - p'), (True, p')]
+  where
+    p' = fromRational $ max 0 $ min 1 $ toRational p
 
 -- | Binomial distribution.
 --   Assigns for each number of successes its probability.
@@ -385,7 +393,7 @@ standardDeviation = sqrt . fromRational . variance
 --   >>> quantile 0.5 $ fromList []
 --   Nothing
 quantile :: Probability -> Distribution a -> Maybe a
-quantile p d = case dropWhile ((< r) . snd) $ cumulative $ toList d of
+quantile p d = case dropWhile ((< r) . snd) $ aggregateWith cumulative $ toList d of
     (x, _) : _ -> Just x
     _          -> Nothing
   where
@@ -421,24 +429,24 @@ support (Distribution xs) = Map.keysSet xs
 -- Aggregation
 
 
--- | Functions that aggregate the probabilities of distributions
---   (as an ascending list of elements tagged with their probability).
-type Aggregator a = [(a, Probability)] -> [(a, Probability)]
+-- | Functions that operate on probabilities.
+type Aggregator = [Probability] -> [Probability]
 
--- | Associates to each value the probability to be less or equal to it.
-cumulative :: Aggregator a
-cumulative = scanl1 (\ (_, a) (x, p) -> (x, p + a))
-
--- | Associates to each value the probability to be greater to it.
-complementaryCumulative :: Aggregator a
-complementaryCumulative = map (second (1 -)) . cumulative
-
--- | Associates to each value the probability to be greater or equal to it.
-decreasing :: Aggregator a
-decreasing xs = zip vs (1 : ps)
+-- | Applies an aggregator on a list of values tagged with their probability.
+aggregateWith :: Aggregator -> [(a, Probability)] -> [(a, Probability)]
+aggregateWith f xs = zip vs $ f ps
   where
-    (vs, ps) = unzip $ complementaryCumulative xs
+    (vs, ps) = unzip xs
 
--- | Associates to each value the probability to be less than it.
-complementaryDecreasing :: Aggregator a
-complementaryDecreasing = map (second (1 -)) . decreasing
+-- | Adds to each probability the sum of the probabilities earlier in the list.
+cumulative :: Aggregator
+cumulative = scanl1 (+)
+
+-- | Replaces each probability by its complement.
+complementary :: Aggregator
+complementary = map (1 -)
+
+-- | Adds to each probability the sum of probabilities later in the list.
+decreasing :: Aggregator
+decreasing = init . (1 :) . complementary . cumulative
+
