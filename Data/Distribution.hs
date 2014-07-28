@@ -294,6 +294,12 @@ select f (Distribution xs) = Distribution $ Map.mapKeysWith (+) f xs
 --   0 % 1
 --   >>> probability (== 3) d
 --   1 % 4
+--
+--   Note that the resulting distribution will be empty
+--   if the predicate does not hold on any of the values.
+--
+--   >>> assuming (> 7) $ uniform [1 .. 6]
+--   fromList []
 assuming :: (a -> Bool) -> Distribution a -> Distribution a
 assuming f (Distribution xs) = Distribution $ fmap adjust filtered
   where
