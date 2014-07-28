@@ -41,7 +41,7 @@ data PlotOptions a = PlotOptions
       --   Defaults to @id@.
     , getTitle :: String
       -- ^ Title of the plot.
-      --   Defaults to @""@.
+      --   Defaults to the empty string.
     , getLabels :: [String]
       -- ^ Labels of the distributions.
       --   Defaults to @[]@.
