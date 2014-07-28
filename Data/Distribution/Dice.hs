@@ -1,3 +1,4 @@
+-- Copyright 2014 Romain Edelmann. All rights reserved.
 
 -- | This modules provides distributions from dice and
 --   functions on dice.
