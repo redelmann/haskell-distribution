@@ -48,7 +48,7 @@ module Data.Distribution
 
 import Control.Arrow (second)
 import qualified Data.Function as F
-import Data.List (foldl', groupBy, sortBy, find)
+import Data.List (tails, groupBy, sortBy, find)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Ord (comparing)
@@ -246,20 +246,34 @@ trials n d = Distribution $ Map.fromAscList $ if
 --   0.23352256082639306
 times :: (Num a, Ord a) => Int -> Distribution a -> Distribution a
 n `times` d
-    | n <= 0 = 0
     | s == 0 = d
+    | n <= 0 = always 0
     | s == 1 = select (* n') d
     | s == 2 = case toList d of  -- Performs Bernoulli trials. (efficiency)
-        [(a, p), (b, q)] -> select (go a b) $ trials n $
-            fromList [(True, p), (False, q)]
+        [(a, p), (b, q)] -> select (go a b) $ trials n $ chance p
         _ -> error "times: size seems not to be properly defined."
-    | otherwise = sum $ replicate n d
+    | otherwise = mult n
   where
     s = size d
     n' = fromInteger $ toInteger n
     go a b k = k' * a + (n' - k') * b
       where
         k' = fromInteger $ toInteger k
+
+    -- Computes @k `times` d@ using a divide and conquer approach.
+    mult 1 = d
+    mult k = if r == 0 then twice d' else twice d' + d
+      where
+        d' = mult k'
+        (k', r) = k `quotRem` 2
+
+    -- Computes @d + d@ more efficiently.
+    twice (Distribution xs) = Distribution $ Map.unionsWith (+) $ do
+        (x, p) : ys <- init $ tails $ Map.toAscList xs
+        return $ Map.fromAscList $ (:) (x + x, p * p) $ do
+            (y, q) <- ys
+            let p' = 2 * p * q
+            return (y + x, p')
 
 
 -- Transformations
@@ -304,7 +318,7 @@ assuming f (Distribution xs) = Distribution $ fmap adjust filtered
 infixl 7 `andThen`
 andThen :: Ord b => Distribution a -> (a -> Distribution b) -> Distribution b
 andThen (Distribution xs) f = Distribution $
-    foldl' (Map.unionWith (+)) Map.empty $ fmap go $ Map.toList xs
+    Map.unionsWith (+) $ fmap go $ Map.toList xs
   where
     go (x, p) = fmap (* p) $ getDistribution $ f x
 
