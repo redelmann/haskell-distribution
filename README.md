@@ -1,6 +1,8 @@
 haskell-distribution
 ====================
 
+Package for manipulating finite discrete probability distributions.
+Supports transformations, measurements, efficient sampling and plotting.
 
 License
 -------
