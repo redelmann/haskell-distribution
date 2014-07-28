@@ -15,7 +15,9 @@ import Control.Monad.Random
 import Control.Monad.ST
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as Vector
+import qualified Data.Vector.Generic as Generic
 import qualified Data.Vector.Mutable as MVector
+import qualified Data.Vector.Unboxed as Unboxed
 
 import Data.Distribution
 
@@ -24,11 +26,11 @@ import Data.Distribution
 --   Can be created in linear time from distributions
 --   and sampled in constant time.
 data Generator a = Generator
-    { probabilities :: Vector Double
+    { probabilities :: !(Unboxed.Vector Double)
       -- ^ Probability to stay in the bucket.
-    , values :: Vector a
+    , values :: !(Vector a)
       -- ^ Value in the bucket.
-    , indexes :: Vector Int
+    , indexes :: !(Unboxed.Vector Int)
       -- ^ Index of the "guest" value. Used when the bucket is left.
     }
 
@@ -115,7 +117,8 @@ fromDistribution d = case toList d of
         -- Each bucket is now completely filled. We freeze the result.
         fps <- Vector.freeze ps
         fis <- Vector.freeze is
-        return $ Generator (fmap fromRational fps) vs fis
+        return $ Generator
+            (Generic.convert $ fmap fromRational fps) vs (Generic.convert fis)
       where
         -- Separating the values from their probability.
         (as, qs) = unzip xs
@@ -142,5 +145,7 @@ sample g = do
     let n = Vector.length $ values g
     u <- getRandom
     j <- getRandomR (0, n - 1)
-    let i = if u < probabilities g ! j then j else indexes g ! j
+    let i = if u < probabilities g Unboxed.! j
+                then j
+                else indexes g Unboxed.! j
     return $ values g ! i
