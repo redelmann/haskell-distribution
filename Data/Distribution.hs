@@ -51,6 +51,7 @@ import qualified Data.Function as F
 import Data.List (tails, groupBy, sortBy, find)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Monoid
 import Data.Ord (comparing)
 import Data.Set (Set)
 
@@ -151,6 +152,9 @@ instance (Ord a, Floating a) => Floating (Distribution a) where
     atanh = select atanh
     acosh = select acosh
 
+instance (Ord a, Monoid a) => Monoid (Distribution a) where
+    mempty = always mempty
+    mappend d1 d2 = d1 `andThen` mappend `on` d2
 
 -- | Converts the distribution to a list of increasing values whose probability
 --   is greater than @0@. To each value is associated its probability.
