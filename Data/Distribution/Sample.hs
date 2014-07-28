@@ -30,7 +30,7 @@ data Generator a = Generator
       -- ^ Value in the bucket.
     , indexes :: Vector Int
       -- ^ Index of the "guest" value. Used when the bucket is left.
-    } deriving (Show)
+    }
 
 instance Functor Generator where
     fmap f (Generator ps vs is) = Generator ps (fmap f vs) is
@@ -74,7 +74,7 @@ fromDistribution d = case toList d of
         is <- MVector.replicate n 0
 
         -- The 'go' function is used to equilibrate the buckets, by assigning
-        -- unused space underfilled buckets to overfilled buckets.
+        -- unused space in underfilled buckets to overfilled buckets.
         --
         -- As first argument are the indexes which have a probability > 1
         -- (indexes of overfilled buckets),
