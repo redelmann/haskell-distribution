@@ -9,15 +9,17 @@ module Data.Distribution.Sample
     ( Generator
     , fromDistribution
     , safeFromDistribution
-    , sample ) where
+    , sample
+    , getSample ) where
 
-import Control.Monad.Random
+import Control.Monad.Random.Class
 import Control.Monad.ST
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as Generic
 import qualified Data.Vector.Mutable as MVector
 import qualified Data.Vector.Unboxed as Unboxed
+import System.Random
 
 import Data.Distribution
 
@@ -137,11 +139,11 @@ safeFromDistribution d = if size d == 0
     then Nothing
     else Just $ fromDistribution d
 
--- | Takes a random value from the generator.
+-- | Picks a random value from the generator.
 --
 --   Runs in constant @O(1)@ time.
-sample :: MonadRandom m => Generator a -> m a
-sample g = do
+getSample :: MonadRandom m => Generator a -> m a
+getSample g = do
     let n = Vector.length $ values g
     u <- getRandom
     j <- getRandomR (0, n - 1)
@@ -149,3 +151,16 @@ sample g = do
                 then j
                 else indexes g Unboxed.! j
     return $ values g ! i
+
+-- | Picks a random value from the generator.
+--
+--   Runs in constant @O(1)@ time.
+sample :: RandomGen g => Generator a -> g -> (a, g)
+sample g k = (values g ! i, k'')
+  where
+    n = Vector.length $ values g
+    (j, k') = randomR (0, n - 1) k
+    (u, k'') = random k'
+    i = if u < probabilities g Unboxed.! j
+            then j
+            else indexes g Unboxed.! j
