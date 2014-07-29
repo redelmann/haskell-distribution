@@ -6,9 +6,12 @@
 --   Internally, Walker's algorithm is used, so that values can be sampled
 --   in constant time.
 module Data.Distribution.Sample
-    ( Generator
+    ( -- * Generator
+      Generator
+      -- ** Building
     , fromDistribution
     , safeFromDistribution
+      -- ** Sampling
     , sample
     , getSample ) where
 
