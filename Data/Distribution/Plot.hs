@@ -17,7 +17,8 @@ module Data.Distribution.Plot
     , plot_format
     , plot_extra_domain
     , plot_stacked
-    , plot_inversed ) where
+    , plot_inversed
+    ) where
 
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Backend.Cairo

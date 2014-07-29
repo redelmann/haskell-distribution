@@ -9,7 +9,8 @@ module Data.Distribution.Coin
     , coin
       -- ** Operations
     , flipsOf
-    , reflipOn ) where
+    , reflipOn
+    ) where
 
 import Data.Distribution
 

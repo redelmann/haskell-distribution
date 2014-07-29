@@ -1,5 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 
+-- Copyright 2014 Romain Edelmann
+
 -- | This modules provides ways to randomly and efficiently sample values
 --   from distributions.
 --
@@ -13,9 +15,10 @@ module Data.Distribution.Sample
     , safeFromDistribution
       -- ** Sampling
     , sample
-    , getSample ) where
+    , getSample
+    ) where
 
-import Control.Monad.Random.Class
+import Control.Monad.Random (MonadRandom, getRandom, getRandomR)
 import Control.Monad.ST
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as Vector
@@ -88,11 +91,11 @@ fromDistribution d = case toList d of
         -- and as second argument those which have a probability < 1
         -- (indexed of underfilled buckets)
         --
-        -- The idea of the function is to take an overfilled and an underfilled
-        -- bucket, and to completely "fill" the underfilled bucket.
+        -- The idea behind the function is to take an overfilled and an
+        -- underfilled bucket, and to completely "fill" the underfilled bucket.
         -- To do so, the overfilled bucket is registered as the guest of the
         -- underfilled bucket. The probability of the overfilled bucket is
-        -- then reduced by the amount that was poured into the underfilled
+        -- then reduced by the amount that was "poured" into the underfilled
         -- bucket.
         let go (o : os) (u : us) = do
                 -- First, we register o as the guest of u.

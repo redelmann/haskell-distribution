@@ -14,7 +14,8 @@ module Data.Distribution.Dice
     , d20
       -- ** Operations
     , rollsOf
-    , rerollOn ) where
+    , rerollOn
+    ) where
 
 import Data.Distribution
 
