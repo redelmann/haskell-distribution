@@ -25,11 +25,14 @@ module Data.Distribution
       -- ** Chaining
     , andThen
     , on
+      -- ** Combining
+    , combine
       -- ** Measures
     , size
     , support
     , probability
     , probabilityAt
+    , probabilityIn
     , expectation
     , variance
     , standardDeviation
@@ -51,6 +54,7 @@ import qualified Data.Function as F
 import Data.List (tails, groupBy, sortBy, find)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Data.Monoid
 import Data.Ord (comparing)
 import Data.Set (Set)
@@ -184,7 +188,7 @@ always x = Distribution $ Map.singleton x 1
 --   weight is the sum of the different associated weights.
 --   Values whose total weight is zero or negative are ignored.
 fromList :: (Ord a, Real p) => [(a, p)] -> Distribution a
-fromList xs = Distribution $ Map.fromAscList $ zip vs scaledPs
+fromList xs = Distribution $ Map.fromDistinctAscList $ zip vs scaledPs
   where
     as = map aggregate $ groupBy ((==) `F.on` fst) $ sortBy (comparing fst) xs
       where
@@ -217,7 +221,7 @@ chance p = fromList [(False, 1 - p'), (True, p')]
 --   >>> probability (== 1) $ trials 2 $ uniform [True, False]
 --   1 % 2
 trials :: Int -> Distribution Bool -> Distribution Int
-trials n d = Distribution $ Map.fromAscList $ if
+trials n d = Distribution $ Map.fromDistinctAscList $ if
     | p == 1    -> [(n, 1)]
     | p == 0    -> [(0, 1)]
     | otherwise -> zip outcomes probs
@@ -274,7 +278,7 @@ n `times` d
     -- Computes @d + d@ more efficiently.
     twice (Distribution xs) = Distribution $ Map.unionsWith (+) $ do
         (x, p) : ys <- init $ tails $ Map.toAscList xs
-        return $ Map.fromAscList $ (:) (x + x, p * p) $ do
+        return $ Map.fromDistinctAscList $ (:) (x + x, p * p) $ do
             (y, q) <- ys
             let p' = 2 * p * q
             return (y + x, p')
@@ -344,6 +348,27 @@ on :: Ord c => (a -> b -> c) -> Distribution b -> a -> Distribution c
 on f d x = select (f x) d
 
 
+-- Combining
+
+-- | Combines multiple weighted distributions into a single distribution.
+--
+--   The probability of each element is the weighted sum of the element's
+--   probability in every distribution.
+--
+--   >>> combine [(always 2, 1 / 3), (uniform [1..6], 2 / 3)]
+--   fromList [(1,1 % 9),(2,4 % 9),(3,1 % 9),(4,1 % 9),(5,1 % 9),(6,1 % 9)]
+--
+--   Note that the weights do not have to sum up to @1@. Distributions with
+--   negative or null weight will be ignored.
+combine :: (Ord a, Real p) => [(Distribution a, p)] -> Distribution a
+combine dws = Distribution $ Map.unionsWith (+) $ zipWith go ds ps
+  where
+    (ds, ws) = unzip $ filter ((> 0) . snd) $ map (second toRational) dws
+    w = sum ws
+    ps = map (/ w) ws
+    go (Distribution xs) p = fmap (* p) xs
+
+
 -- Measures
 
 
@@ -356,15 +381,37 @@ size (Distribution xs) = Map.size xs
 --
 --   >>> probability (\ x -> x == 1 || x == 6) $ uniform [1 .. 6]
 --   1 % 3
+--
+--   Takes @O(n)@ time. See 'probabilityAt' and 'probabilityIn'
+--   for a more efficient ways to query elements and ranges.
 probability :: (a -> Bool) -> Distribution a -> Probability
 probability f (Distribution xs) = sum $ Map.elems $
     Map.filterWithKey (const . f) xs
 
 -- | Probability of a given value.
+--
+--   Takes @O(log(n))@ time.
 probabilityAt :: Ord a => a -> Distribution a -> Probability
 probabilityAt x (Distribution xs) = case Map.lookup x xs of
     Just p -> p
     Nothing -> 0
+
+-- | Probability of a the inclusive @[low, high]@ range.
+--   When @low > high@, the probability is 0.
+--
+--   Takes @O(log(n) + m)@ time, where @n@ is the size of
+--   the distribution and @m@ the size of the range.
+probabilityIn :: Ord a => (a, a) -> Distribution a -> Probability
+probabilityIn (low, high) (Distribution xs)
+    | low > high = 0
+    | low == high = probabilityAt low (Distribution xs)
+    | otherwise = Map.foldl' (+) (ph + pl) ps
+  where
+    (_, ml, hs) = Map.splitLookup low xs
+    (ps, mh, _) = Map.splitLookup high hs
+
+    pl = fromMaybe 0 ml
+    ph = fromMaybe 0 mh
 
 -- | Returns the expectation, or mean, of a distribution.
 --
