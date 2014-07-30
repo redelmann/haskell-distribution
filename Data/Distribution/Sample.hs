@@ -27,7 +27,7 @@ import qualified Data.Vector.Mutable as MVector
 import qualified Data.Vector.Unboxed as Unboxed
 import System.Random (RandomGen, random, randomR)
 
-import Data.Distribution
+import Data.Distribution.Core
 
 -- | Generator of random values of type @a@.
 --

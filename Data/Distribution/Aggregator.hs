@@ -21,7 +21,7 @@ module Data.Distribution.Aggregator
 
 import Data.Monoid
 
-import Data.Distribution
+import Data.Distribution.Core
 
 
 -- Aggregation

@@ -24,7 +24,7 @@ import Control.Arrow (second)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
-import Data.Distribution
+import Data.Distribution.Core
 
 
 -- | Probability that a predicate holds on the distribution.

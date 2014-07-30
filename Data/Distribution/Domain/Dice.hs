@@ -17,7 +17,7 @@ module Data.Distribution.Domain.Dice
     , rerollOn
     ) where
 
-import Data.Distribution
+import Data.Distribution.Core
 
 -- | Distribution of the result of dice rolls.
 type Dice = Distribution Int

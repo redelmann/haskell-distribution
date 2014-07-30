@@ -34,8 +34,8 @@ import Control.Arrow (second)
 import Control.Lens
 import Control.Monad (void)
 
-import Data.Distribution
 import Data.Distribution.Aggregator
+import Data.Distribution.Core
 import Data.Distribution.Measure
 
 -- | Options for plotting distributions.

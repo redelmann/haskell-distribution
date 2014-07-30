@@ -12,7 +12,7 @@ module Data.Distribution.Domain.Coin
     , reflipOn
     ) where
 
-import Data.Distribution
+import Data.Distribution.Core
 
 -- | Distribution over the sides of a coin.
 type Coin = Distribution CoinSide

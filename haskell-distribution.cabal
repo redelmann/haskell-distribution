@@ -47,6 +47,7 @@ library
   -- Modules exported by the library.
   exposed-modules:     Data.Distribution,
                        Data.Distribution.Aggregator,
+                       Data.Distribution.Core,
                        Data.Distribution.Domain.Coin,
                        Data.Distribution.Domain.Dice,
                        Data.Distribution.Measure,
