@@ -13,6 +13,7 @@ module Data.Distribution.Aggregator
     , separated
       -- ** Application
     , modifyProbabilities
+    , aggregateWith
       -- ** Useful aggregators
     , cumulative
     , decreasing
@@ -34,12 +35,14 @@ newtype Aggregator a = Aggregator
       --   of probabilities.
     }
 
+-- | 'mempty' is the aggregator that leaves probabilities untouched,
+--   and 'mappend' compose aggregators.
 instance Monoid (Aggregator a) where
     mempty = Aggregator (map snd)
     mappend (Aggregator f) g = Aggregator (f . aggregateWith g)
 
 -- | Applies an aggregator on a list of values tagged with their probability.
---   The values themselves are unchanged.
+--   The values themselves are left unchanged.
 aggregateWith :: Aggregator a -> [(a, Probability)] -> [(a, Probability)]
 aggregateWith (Aggregator f) xs = zip vs $ f xs
   where
@@ -70,15 +73,22 @@ separated x la ga = makeAggregator go
         (es, gs) = span ((== x) . fst) egs
 
 -- | Adds to each probability the sum of the probabilities earlier in the list.
+--
+--   >>> aggregateWith cumulative $ toList $ uniform [1 .. 5]
+--   [(1,1 % 5),(2,2 % 5),(3,3 % 5),(4,4 % 5),(5,1 % 1)]
 cumulative :: Aggregator a
 cumulative = makePureAggregator (scanl1 (+))
 
 -- | Replaces each probability by its complement.
+--
+--   >>> aggregateWith complementary $ toList $ uniform [1 .. 5]
+--   [(1,4 % 5),(2,4 % 5),(3,4 % 5),(4,4 % 5),(5,4 % 5)]
 complementary :: Aggregator a
 complementary = makePureAggregator (map (1 -))
 
 -- | Adds to each probability the sum of probabilities later in the list.
+--
+--   >>> aggregateWith decreasing  $ toList $ uniform [1 .. 5]
+--   [(1,1 % 1),(2,4 % 5),(3,3 % 5),(4,2 % 5),(5,1 % 5)]
 decreasing :: Aggregator a
 decreasing = makePureAggregator (scanr1 (+))
-
-
