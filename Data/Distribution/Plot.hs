@@ -26,6 +26,7 @@ import Data.Colour
 import Data.Colour.Names
 import Data.Default.Class
 import Data.List (transpose)
+import Data.Monoid
 import Data.Ratio
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -34,10 +35,11 @@ import Control.Lens
 import Control.Monad (void)
 
 import Data.Distribution
+import Data.Distribution.Aggregator
 
 -- | Options for plotting distributions.
 data PlotOptions a = PlotOptions
-    { getAggregator :: Aggregator
+    { getAggregator :: Aggregator a
       -- ^ Aggregator to apply on the values.
       --   Defaults to @id@.
     , getTitle :: String
@@ -72,7 +74,7 @@ data PlotOptions a = PlotOptions
 
 instance Show a => Default (PlotOptions a) where
     def = PlotOptions
-        { getAggregator = id
+        { getAggregator = mempty
         , getTitle = ""
         , getLabels = []
         , getColors = defaultColorSeq
@@ -88,7 +90,7 @@ instance Show a => Default (PlotOptions a) where
 
 
 -- | Lens for 'getAggregator'.
-plot_aggregator :: Simple Lens (PlotOptions a) Aggregator
+plot_aggregator :: Simple Lens (PlotOptions a) (Aggregator a)
 plot_aggregator = lens getAggregator (\ o x -> o { getAggregator = x })
 
 -- | Lens for 'getTitle'.
@@ -175,7 +177,7 @@ plotWith options file distributions = void $ renderableToFile env
         xvalues = domain
 
         yvalues = transpose
-                $ map (getAggregator options)
+                $ map (modifyProbabilities (getAggregator options) . zip xvalues)
                 $ map (\ d -> map (`probabilityAt` d) xvalues) distributions
 
         layout = layout_x_axis . laxis_generate .~ autoIndexAxis
@@ -194,7 +196,7 @@ plotWith options file distributions = void $ renderableToFile env
 
         xvalues = getLabels options
 
-        yvalues = map (getAggregator options)
+        yvalues = map (modifyProbabilities (getAggregator options) . zip domain)
                 $ map (\ d -> map (`probabilityAt` d) domain) distributions
 
         layout = layout_x_axis . laxis_generate .~ autoIndexAxis xvalues

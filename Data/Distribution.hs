@@ -40,13 +40,6 @@ module Data.Distribution
     , median
     , modes
     , quantile
-      -- ** Aggregation
-    , Aggregator
-    , aggregateWith
-      -- *** Useful aggregators
-    , cumulative
-    , decreasing
-    , complementary
     ) where
 
 import Control.Arrow (second)
@@ -164,7 +157,6 @@ instance (Ord a, Monoid a) => Monoid (Distribution a) where
 --   is greater than @0@. To each value is associated its probability.
 toList :: Distribution a -> [(a, Probability)]
 toList (Distribution xs) = Map.toAscList xs
-
 
 -- | Probability. Should be between 0 and 1.
 type Probability = Rational
@@ -464,11 +456,12 @@ standardDeviation = sqrt . fromRational . variance
 --   >>> quantile 0.5 $ fromList []
 --   Nothing
 quantile :: Probability -> Distribution a -> Maybe a
-quantile p d = case dropWhile ((< r) . snd) $ aggregateWith cumulative $ toList d of
+quantile p d = case dropWhile ((< r) . snd) $ scanl1 go $ toList d of
     (x, _) : _ -> Just x
     _          -> Nothing
   where
     r = max 0 $ min 1 p
+    go (_, q') (x, q) = (x, q' + q)
 
 -- | Returns the median of the values.
 --   The median is the smallest value such that at least 50% of
@@ -495,29 +488,3 @@ modes (Distribution xs) = map fst $ filter ((m ==) . snd) ys
 -- | Values in the distribution with non-zero probability.
 support :: Distribution a -> Set a
 support (Distribution xs) = Map.keysSet xs
-
-
--- Aggregation
-
-
--- | Functions that operate on probabilities.
-type Aggregator = [Probability] -> [Probability]
-
--- | Applies an aggregator on a list of values tagged with their probability.
-aggregateWith :: Aggregator -> [(a, Probability)] -> [(a, Probability)]
-aggregateWith f xs = zip vs $ f ps
-  where
-    (vs, ps) = unzip xs
-
--- | Adds to each probability the sum of the probabilities earlier in the list.
-cumulative :: Aggregator
-cumulative = scanl1 (+)
-
--- | Replaces each probability by its complement.
-complementary :: Aggregator
-complementary = map (1 -)
-
--- | Adds to each probability the sum of probabilities later in the list.
-decreasing :: Aggregator
-decreasing = init . (1 :) . complementary . cumulative
-

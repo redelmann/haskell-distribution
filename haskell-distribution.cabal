@@ -45,7 +45,7 @@ cabal-version:       >=1.8
 
 library
   -- Modules exported by the library.
-  exposed-modules:     Data.Distribution, Data.Distribution.Coin, Data.Distribution.Dice, Data.Distribution.Plot, Data.Distribution.Sample
+  exposed-modules:     Data.Distribution, Data.Distribution.Aggregator, Data.Distribution.Coin, Data.Distribution.Dice, Data.Distribution.Plot, Data.Distribution.Sample
 
   -- Modules included in this library but not exported.
   -- other-modules:
