@@ -49,6 +49,7 @@ library
                        Data.Distribution.Aggregator,
                        Data.Distribution.Domain.Coin,
                        Data.Distribution.Domain.Dice,
+                       Data.Distribution.Measure,
                        Data.Distribution.Plot,
                        Data.Distribution.Sample
 

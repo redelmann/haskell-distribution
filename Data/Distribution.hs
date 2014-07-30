@@ -4,43 +4,33 @@
 
 -- | This modules defines types and functions for manipulating
 --   finite discrete probability distributions.
---
---   This module is best suited for work on small to medium
---   distributions.
 module Data.Distribution
-    ( -- * Distribution
-      Distribution
+    ( -- * Probability
+      Probability
+      -- * Distribution
+    , Distribution
     , toMap
     , toList
-    , Probability
+      -- ** Properties
+    , size
+    , support
       -- ** Creation
+    , fromList
     , always
     , uniform
-    , fromList
     , chance
-    , trials
-    , times
       -- ** Transformation
     , select
     , assuming
-      -- ** Chaining
+      -- ** Combination
+    , combine
+      -- ** Sequences
+      -- *** Independant experiments
+    , trials
+    , times
+      -- *** Dependant experiments
     , andThen
     , on
-      -- ** Combining
-    , combine
-      -- ** Measures
-    , size
-    , support
-    , probability
-    , probabilityAt
-    , probabilityIn
-    , expectation
-    , variance
-    , standardDeviation
-    , mean
-    , median
-    , modes
-    , quantile
     ) where
 
 import Control.Arrow (second)
@@ -48,10 +38,13 @@ import qualified Data.Function as F
 import Data.List (tails, groupBy, sortBy, find)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 import Data.Monoid
 import Data.Ord (comparing)
 import Data.Set (Set)
+
+
+-- | Probability. Should be between 0 and 1.
+type Probability = Rational
 
 -- | Distribution over values of type @a@.
 --
@@ -163,17 +156,22 @@ instance (Ord a, Monoid a) => Monoid (Distribution a) where
 toList :: Distribution a -> [(a, Probability)]
 toList (Distribution xs) = Map.toAscList xs
 
--- | Probability. Should be between 0 and 1.
-type Probability = Rational
 
--- | Distribution that assigns to @x@ the probability of @1@.
---
--- >>> probability (== 0) $ always 0
--- 1 % 1
--- >>> probability (/= 0) $ always 0
--- 0 % 1
-always :: a -> Distribution a
-always x = Distribution $ Map.singleton x 1
+-- Properties
+
+
+-- | Returns the number of elements with non-zero probability
+--   in the distribution.
+size :: Distribution a -> Int
+size = Map.size . toMap
+
+-- | Values in the distribution with non-zero probability.
+support :: Distribution a -> Set a
+support = Map.keysSet . toMap
+
+
+-- Creation
+
 
 -- | Distribution that assigns to each @value@ from the given @(value, weight)@
 --   pairs a probability proportional to @weight@.
@@ -195,6 +193,15 @@ fromList xs = Distribution $ Map.fromDistinctAscList $ zip vs scaledPs
     t = sum ps
     scaledPs = if t /= 1 then map (/ t) ps else ps
 
+-- | Distribution that assigns to @x@ the probability of @1@.
+--
+-- >>> probability (== 0) $ always 0
+-- 1 % 1
+-- >>> probability (/= 0) $ always 0
+-- 0 % 1
+always :: a -> Distribution a
+always x = Distribution $ Map.singleton x 1
+
 -- | Uniform distribution over the values.
 --   The probability of each element is proportional
 --   to its number of appearance in the list.
@@ -212,6 +219,64 @@ chance p = fromList [(False, 1 - p'), (True, p')]
   where
     p' = fromRational $ max 0 $ min 1 $ toRational p
 
+
+-- Transformation
+
+
+-- | Applies a function to the values in the distribution.
+--
+--   >>> probability (== 1) $ select abs $ uniform [-1, 0, 1]
+--   2 % 3
+select :: Ord b => (a -> b) -> Distribution a -> Distribution b
+select f (Distribution xs) = Distribution $ Map.mapKeysWith (+) f xs
+
+-- | Returns a new distribution conditioning on the predicate holding
+--   on the value.
+--
+--   >>> let d = assuming (> 2) $ uniform [1 .. 6]
+--   >>> probability (== 2) d
+--   0 % 1
+--   >>> probability (== 3) d
+--   1 % 4
+--
+--   Note that the resulting distribution will be empty
+--   if the predicate does not hold on any of the values.
+--
+--   >>> assuming (> 7) $ uniform [1 .. 6]
+--   fromList []
+assuming :: (a -> Bool) -> Distribution a -> Distribution a
+assuming f (Distribution xs) = Distribution $ fmap adjust filtered
+  where
+    filtered = Map.filterWithKey (const . f) xs
+    adjust x = x * (1 / total)
+    total = sum $ Map.elems filtered
+
+
+-- Combination
+
+
+-- | Combines multiple weighted distributions into a single distribution.
+--
+--   The probability of each element is the weighted sum of the element's
+--   probability in every distribution.
+--
+--   >>> combine [(always 2, 1 / 3), (uniform [1..6], 2 / 3)]
+--   fromList [(1,1 % 9),(2,4 % 9),(3,1 % 9),(4,1 % 9),(5,1 % 9),(6,1 % 9)]
+--
+--   Note that the weights do not have to sum up to @1@. Distributions with
+--   negative or null weight will be ignored.
+combine :: (Ord a, Real p) => [(Distribution a, p)] -> Distribution a
+combine dws = Distribution $ Map.unionsWith (+) $ zipWith go ds ps
+  where
+    (ds, ws) = unzip $ filter ((> 0) . snd) $ map (second toRational) dws
+    w = sum ws
+    ps = map (/ w) ws
+    go (Distribution xs) p = fmap (* p) xs
+
+
+-- Sequences
+
+
 -- | Binomial distribution.
 --   Assigns for each number of successes its probability.
 --
@@ -223,7 +288,9 @@ trials n d = Distribution $ Map.fromDistinctAscList $ if
     | p == 0    -> [(0, 1)]
     | otherwise -> zip outcomes probs
   where
-    p = probability (== True) d
+    p = case Map.lookup True (toMap d) of
+        Just x  -> x
+        Nothing -> 0
     q = 1 - p
 
     ps = take (n + 1) $ iterate (* p) 1
@@ -259,7 +326,7 @@ n `times` d
         _ -> error "times: size seems not to be properly defined."
     | otherwise = mult n
   where
-    s = size d
+    s = Map.size $ toMap d
     n' = fromInteger $ toInteger n
     go a b k = k' * a + (n' - k') * b
       where
@@ -281,41 +348,6 @@ n `times` d
             return (y + x, p')
 
 
--- Transformations
-
-
--- | Applies a function to the values in the distribution.
---
---   >>> probability (== 1) $ select abs $ uniform [-1, 0, 1]
---   2 % 3
-select :: Ord b => (a -> b) -> Distribution a -> Distribution b
-select f (Distribution xs) = Distribution $ Map.mapKeysWith (+) f xs
-
--- | Returns a new distribution conditioning on the predicate holding
---   on the value.
---
---   >>> let d = assuming (> 2) $ uniform [1 .. 6]
---   >>> probability (== 2) d
---   0 % 1
---   >>> probability (== 3) d
---   1 % 4
---
---   Note that the resulting distribution will be empty
---   if the predicate does not hold on any of the values.
---
---   >>> assuming (> 7) $ uniform [1 .. 6]
---   fromList []
-assuming :: (a -> Bool) -> Distribution a -> Distribution a
-assuming f (Distribution xs) = Distribution $ fmap adjust filtered
-  where
-    filtered = Map.filterWithKey (const . f) xs
-    adjust x = x * (1 / total)
-    total = sum $ Map.elems filtered
-
-
--- Chaining
-
-
 -- | Computes for each value in the distribution a new distribution, and then
 --   combines those distributions, giving each the weight of the original value.
 --
@@ -334,7 +366,7 @@ andThen (Distribution xs) f = Distribution $
     go (x, p) = fmap (* p) $ toMap $ f x
 
 -- | Utility to partially apply a function on a distribution.
---   A use case for 'on' is to use in conjunction with 'andThen'
+--   A use case for 'on' is to use it in conjunction with 'andThen'
 --   to combine distributions.
 --
 --   >>> let d = uniform [1 .. 6] `andThen` (+) `on` uniform [1 .. 6]
@@ -343,152 +375,3 @@ andThen (Distribution xs) f = Distribution $
 infixl 8 `on`
 on :: Ord c => (a -> b -> c) -> Distribution b -> a -> Distribution c
 on f d x = select (f x) d
-
-
--- Combining
-
--- | Combines multiple weighted distributions into a single distribution.
---
---   The probability of each element is the weighted sum of the element's
---   probability in every distribution.
---
---   >>> combine [(always 2, 1 / 3), (uniform [1..6], 2 / 3)]
---   fromList [(1,1 % 9),(2,4 % 9),(3,1 % 9),(4,1 % 9),(5,1 % 9),(6,1 % 9)]
---
---   Note that the weights do not have to sum up to @1@. Distributions with
---   negative or null weight will be ignored.
-combine :: (Ord a, Real p) => [(Distribution a, p)] -> Distribution a
-combine dws = Distribution $ Map.unionsWith (+) $ zipWith go ds ps
-  where
-    (ds, ws) = unzip $ filter ((> 0) . snd) $ map (second toRational) dws
-    w = sum ws
-    ps = map (/ w) ws
-    go (Distribution xs) p = fmap (* p) xs
-
-
--- Measures
-
-
--- | Returns the number of elements with non-zero probability
---   in the distribution.
-size :: Distribution a -> Int
-size = Map.size . toMap
-
--- | Probability that a predicate holds on the distribution.
---
---   >>> probability (\ x -> x == 1 || x == 6) $ uniform [1 .. 6]
---   1 % 3
---
---   Takes @O(n)@ time. See 'probabilityAt' and 'probabilityIn'
---   for a more efficient ways to query elements and ranges.
-probability :: (a -> Bool) -> Distribution a -> Probability
-probability f = sum . Map.elems . Map.filterWithKey (const . f) . toMap
-
--- | Probability of a given value.
---
---   Takes @O(log(n))@ time.
-probabilityAt :: Ord a => a -> Distribution a -> Probability
-probabilityAt x d = case Map.lookup x (toMap d) of
-    Just p -> p
-    Nothing -> 0
-
--- | Probability of a the inclusive @[low, high]@ range.
---   When @low > high@, the probability is 0.
---
---   Takes @O(log(n) + m)@ time, where @n@ is the size of
---   the distribution and @m@ the size of the range.
-probabilityIn :: Ord a => (a, a) -> Distribution a -> Probability
-probabilityIn (low, high) d
-    | low > high = 0
-    | low == high = probabilityAt low d
-    | otherwise = Map.foldl' (+) (ph + pl) ps
-  where
-    (_, ml, hs) = Map.splitLookup low $ toMap d
-    (ps, mh, _) = Map.splitLookup high hs
-
-    pl = fromMaybe 0 ml
-    ph = fromMaybe 0 mh
-
--- | Returns the expectation, or mean, of a distribution.
---
--- >>> expectation $ uniform [0, 1]
--- 0.5
---
--- Empty distributions have an expectation of @0@.
-expectation :: (Real a, Fractional b) => Distribution a -> b
-expectation = fromRational . sum .
-    fmap (uncurry (*) . second toRational) .
-    Map.toList . Map.mapKeysWith (+) toRational . toMap
-
--- | Returns the variance of a distribution.
---
--- >>> variance $ always 1
--- 0.0
--- >>> variance $ uniform [0 .. 1]
--- 0.25
--- >>> variance $ uniform [1 .. 7]
--- 4.0
---
--- Empty distributions have a variance of @0@.
-variance :: (Real a, Fractional b) => Distribution a -> b
-variance d = expectation dSquare - (e * e)
-  where
-    e = expectation d
-    dSquare = select (square . toRational) d
-    square x = x * x
-
--- | Standard deviation.
---
---   >>> standardDeviation $ always 1
---   0.0
---   >>> standardDeviation $ uniform [0 .. 1]
---   0.5
---   >>> standardDeviation $ uniform [1 .. 7]
---   2.0
-standardDeviation :: (Real a, Floating b) => Distribution a -> b
-standardDeviation = sqrt . fromRational . variance
-
--- | Returns the smallest value in the distribution such that
---   at least a fraction `p` of the values are less or equal to it.
---
---   >>> quantile 0.0 $ uniform [1, 2, 3]
---   Just 1
---   >>> quantile 0.5 $ uniform [1, 2, 3]
---   Just 2
---   >>> quantile 1.0 $ uniform [1, 2, 3]
---   Just 3
---   >>> quantile 0.5 $ fromList []
---   Nothing
-quantile :: Probability -> Distribution a -> Maybe a
-quantile p d = case dropWhile ((< r) . snd) $ scanl1 go $ toList d of
-    (x, _) : _ -> Just x
-    _          -> Nothing
-  where
-    r = max 0 $ min 1 p
-    go (_, q') (x, q) = (x, q' + q)
-
--- | Returns the median of the values.
---   The median is the smallest value such that at least 50% of
---   the values are less to it.
---
---   >>> median $ fromList [(1, 0.6), (2, 0.4)]
---   Just 1
---   >>> median $ fromList [(1, 0.4), (2, 0.6)]
---   Just 2
-median :: Distribution a -> Maybe a
-median = quantile 0.5
-
--- | Synonym of 'expectation'.
-mean :: (Real a, Fractional b) => Distribution a -> b
-mean = expectation
-
--- | Returns all values whose probability is maximal.
-modes :: Distribution a -> [a]
-modes d = map fst $ filter ((m ==) . snd) xs
-  where
-    xs = toList d
-    m = maximum $ map snd xs
-
--- | Values in the distribution with non-zero probability.
-support :: Distribution a -> Set a
-support = Map.keysSet . toMap

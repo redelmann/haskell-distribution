@@ -36,6 +36,7 @@ import Control.Monad (void)
 
 import Data.Distribution
 import Data.Distribution.Aggregator
+import Data.Distribution.Measure
 
 -- | Options for plotting distributions.
 data PlotOptions a = PlotOptions
