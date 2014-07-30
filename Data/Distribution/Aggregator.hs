@@ -1,3 +1,4 @@
+-- Copyright 2014 Romain Edelmann. All rights reserved.
 
 -- | Module containing functions to apply on
 --   lists of values tagged with their probability,
