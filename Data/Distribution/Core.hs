@@ -18,7 +18,7 @@ module Data.Distribution.Core
     , fromList
     , always
     , uniform
-    , chance
+    , withProbability
       -- ** Transformation
     , select
     , assuming
@@ -198,6 +198,9 @@ fromList xs = Distribution $ Map.fromDistinctAscList $ zip vs scaledPs
 --
 -- >>> always 0
 -- fromList [(0,1 % 1)]
+--
+-- >>> always 42
+-- fromList [(42,1 % 1)]
 always :: a -> Distribution a
 always x = Distribution $ Map.singleton x 1
 
@@ -213,8 +216,8 @@ uniform xs = fromList $ fmap (\ x -> (x, p)) xs
     p = 1 / toRational (length xs)
 
 -- | @True@ with given probability and @False@ with complementary probability.
-chance :: Real p => p -> Distribution Bool
-chance p = fromList [(False, 1 - p'), (True, p')]
+withProbability :: Real p => p -> Distribution Bool
+withProbability p = fromList [(False, 1 - p'), (True, p')]
   where
     p' = fromRational $ max 0 $ min 1 $ toRational p
 
@@ -316,7 +319,7 @@ n `times` d
     | n <= 0 = always 0
     | s == 1 = select (* n') d
     | s == 2 = case toList d of  -- Performs Bernoulli trials. (efficiency)
-        [(a, p), (b, q)] -> select (go a b) $ trials n $ chance p
+        [(a, p), (b, q)] -> select (go a b) $ trials n $ withProbability p
         _ -> error "times: size seems not to be properly defined."
     | otherwise = mult n
   where
