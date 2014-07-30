@@ -177,9 +177,9 @@ plotWith options file distributions = void $ renderableToFile env
 
         xvalues = domain
 
-        yvalues = transpose
-                $ map (modifyProbabilities (getAggregator options) . zip xvalues)
-                $ map (\ d -> map (`probabilityAt` d) xvalues) distributions
+        yvalues = transpose $ map
+                (modifyProbabilities (getAggregator options) . zip xvalues
+                . \ d -> map (`probabilityAt` d) xvalues) distributions
 
         layout = layout_x_axis . laxis_generate .~ autoIndexAxis
                     (map (getDisplayer options) xvalues)
@@ -197,8 +197,8 @@ plotWith options file distributions = void $ renderableToFile env
 
         xvalues = getLabels options
 
-        yvalues = map (modifyProbabilities (getAggregator options) . zip domain)
-                $ map (\ d -> map (`probabilityAt` d) domain) distributions
+        yvalues = map (modifyProbabilities (getAggregator options) .
+            zip domain . \ d -> map (`probabilityAt` d) domain) distributions
 
         layout = layout_x_axis . laxis_generate .~ autoIndexAxis xvalues
                $ layout_plots .~ [ plotBars bars ]

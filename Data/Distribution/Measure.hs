@@ -40,9 +40,7 @@ probability f = sum . Map.elems . Map.filterWithKey (const . f) . toMap
 --
 --   Takes @O(log(n))@ time.
 probabilityAt :: Ord a => a -> Distribution a -> Probability
-probabilityAt x d = case Map.lookup x (toMap d) of
-    Just p -> p
-    Nothing -> 0
+probabilityAt x = fromMaybe 0 . Map.lookup x . toMap
 
 -- | Probability of a the inclusive @[low, high]@ range.
 --   When @low > high@, the probability is 0.

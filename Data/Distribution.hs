@@ -32,9 +32,14 @@ module Data.Distribution
 
       -- * Other modules
 
-      -- | For plotting distributions, see the "Data.Distribution.Plot" module,
-      --   and for various domain specific distributions, see for instance
-      --   "Data.Distribution.Domain.Dice" and "Data.Distribution.Domain.Coin".
+      -- | Not all modules related to distributions are exported by default.
+      --   Here is a list of such modules:
+      --
+      --       * "Data.Distribution.Plot" : For plotting distributions.
+      --
+      --       * "Data.Distribution.Domain.Dice" : Distributions over dice.
+      --
+      --       * "Data.Distribution.Domain.Coin" : Distributions over coins.
     ) where
 
 import Data.Distribution.Core

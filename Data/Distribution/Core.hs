@@ -38,6 +38,7 @@ import qualified Data.Function as F
 import Data.List (tails, groupBy, sortBy, find)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Data.Monoid
 import Data.Ord (comparing)
 import Data.Set (Set)
@@ -273,7 +274,7 @@ combine dws = Distribution $ Map.unionsWith (+) $ zipWith go ds ps
 
 
 -- | Binomial distribution.
---   Assigns for each number of successes its probability.
+--   Assigns to each number of successes its probability.
 --
 --   >>> trials 2 $ uniform [True, False]
 --   fromList [(0,1 % 4),(1,1 % 2),(2,1 % 4)]
@@ -283,9 +284,7 @@ trials n d = Distribution $ Map.fromDistinctAscList $ if
     | p == 0    -> [(0, 1)]
     | otherwise -> zip outcomes probs
   where
-    p = case Map.lookup True (toMap d) of
-        Just x  -> x
-        Nothing -> 0
+    p = fromMaybe 0 $ Map.lookup True $ toMap d
     q = 1 - p
 
     ps = take (n + 1) $ iterate (* p) 1
@@ -341,7 +340,6 @@ n `times` d
             (y, q) <- ys
             let p' = 2 * p * q
             return (y + x, p')
-
 
 -- | Computes for each value in the distribution a new distribution, and then
 --   combines those distributions, giving each the weight of the original value.

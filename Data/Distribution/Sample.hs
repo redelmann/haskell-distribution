@@ -144,10 +144,10 @@ fromDistribution d = case toList d of
         iqs = zip [0 ..] sqs
 
     stArrayFromList :: [e] -> ST s (STArray s Int e)
-    stArrayFromList xs = newListArray (0, n - 1) xs
+    stArrayFromList = newListArray (0, n - 1)
 
     stuArray :: e -> ST s (STArray s Int e)
-    stuArray x = newArray (0, n - 1) x
+    stuArray = newArray (0, n - 1)
 
 -- | Safe version of 'fromDistribution'. Returns @Nothing@ when the
 --   given distribution is empty.
