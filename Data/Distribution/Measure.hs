@@ -3,18 +3,17 @@
 -- | This modules provides various measures on
 --   finite discrete probability distributions.
 module Data.Distribution.Measure
-    ( -- * Measures
-      -- ** Probability
+    ( -- * Probability
       probability
     , probabilityAt
     , probabilityIn
-      -- ** Expectation
+      -- * Expectation
     , expectation
     , mean
-      -- ** Variation
+      -- * Variation
     , variance
     , standardDeviation
-      -- ** Values
+      -- * Values
     , median
     , modes
     , quantile
@@ -122,7 +121,7 @@ quantile p d = case dropWhile ((< r) . snd) $ scanl1 go $ toList d of
 
 -- | Returns the median of the values.
 --   The median is the smallest value such that at least 50% of
---   the values are less to it.
+--   the values are less or equal to it.
 --
 --   >>> median $ fromList [(1, 0.6), (2, 0.4)]
 --   Just 1
