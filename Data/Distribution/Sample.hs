@@ -5,8 +5,8 @@
 -- | This modules provides ways to randomly and efficiently sample values
 --   from distributions.
 --
---   Internally, Walker's algorithm is used, so that values can be sampled
---   in constant time.
+--   Walker's <http://en.wikipedia.org/wiki/Alias_method alias method> is
+--   used internally, so that values can be sampled in constant time.
 module Data.Distribution.Sample
     ( -- * Generator
       Generator

@@ -64,12 +64,12 @@ newtype Distribution a = Distribution
 instance Show a => Show (Distribution a) where
     show d = "fromList " ++ show (toList d)
 
--- A distribution @d1@ is less than some other distribution @d2@
--- if the smallest value that has a different probability
--- in @d1@ and @d2@ is more probable in @d1@.
+-- | A distribution @d1@ is less than some other distribution @d2@
+--   if the smallest value that has a different probability
+--   in @d1@ and @d2@ is more probable in @d1@.
 --
--- By convention, empty distributions are less than
--- everything except themselves.
+--   By convention, empty distributions are less than
+--   everything except themselves.
 instance Ord a => Ord (Distribution a) where
     compare d1 d2 = case (toList d1, toList d2) of
         ([], []) -> EQ
@@ -81,35 +81,41 @@ instance Ord a => Ord (Distribution a) where
                 EQ -> compare q p
                 c  -> c
 
--- Lifts the bounds to the distributions that return them
--- with probability one.
+-- | Lifts the bounds to the distributions that return them
+--   with probability one.
 --
--- Note that the degenerate distributions of size @0@ will
--- be less than the distribution @minBound@.
+--   Note that the degenerate distributions of size @0@ will
+--   be less than the distribution @minBound@.
 --
--- Appart from that, all other distributions d have
--- the property that @minBound <= d <= maxBound@ if
--- this property holds on the values of the distribution.
+--   Appart from that, all other distributions d have
+--   the property that @minBound <= d <= maxBound@ if
+--   this property holds on the values of the distribution.
 instance Bounded a => Bounded (Distribution a) where
     minBound = always minBound
     maxBound = always maxBound
 
--- Binary operations on distributions are defined to
--- be the binary operation on each pair of elements.
+-- | Literals are interpreted as distributions that always
+--   return the given value.
 --
--- For this reason, @(+)@ and @(*)@ are not related in the same way
--- as they are on natural numbers.
+--   >>> 42 == always 42
+--   True
 --
--- For instance, it is not always the case that:
--- @3 * d == d + d + d@
+--   Binary operations on distributions are defined to
+--   be the binary operation on each pair of elements.
 --
--- >>> let d = uniform [0, 1]
--- >>> 3 * d
--- fromList [(0,1 % 2),(3,1 % 2)]
--- >>> d + d + d
--- fromList [(0,1 % 8),(1,3 % 8),(2,3 % 8),(3,1 % 8)]
+--   For this reason, @(+)@ and @(*)@ are not related in the same way
+--   as they are on natural numbers.
 --
--- For this particular behavior, see the `times` function.
+--   For instance, it is not always the case that:
+--   @3 * d == d + d + d@
+--
+--   >>> let d = uniform [0, 1]
+--   >>> 3 * d
+--   fromList [(0,1 % 2),(3,1 % 2)]
+--   >>> d + d + d
+--   fromList [(0,1 % 8),(1,3 % 8),(2,3 % 8),(3,1 % 8)]
+--
+--   For this particular behavior, see the `times` function.
 instance (Ord a, Num a) => Num (Distribution a) where
     fromInteger = always . fromInteger
     abs = select abs
