@@ -58,7 +58,8 @@ library
   -- other-modules:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base ==4.6.*,
+  build-depends:       array ==0.4.*,
+                       base ==4.6.*,
                        containers ==0.5.*,
                        Chart ==1.2.*,
                        Chart-cairo ==1.2.*,
@@ -66,6 +67,5 @@ library
                        data-default-class ==0.0.*,
                        lens ==4.1.*,
                        MonadRandom ==0.1.*,
-                       random ==1.0.*,
-                       vector ==0.10.*
+                       random ==1.0.*
 

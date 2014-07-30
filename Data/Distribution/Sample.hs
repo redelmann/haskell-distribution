@@ -18,13 +18,12 @@ module Data.Distribution.Sample
     , getSample
     ) where
 
-import Control.Monad.Random (MonadRandom, getRandom, getRandomR)
-import Control.Monad.ST
-import Data.Vector (Vector, (!))
-import qualified Data.Vector as Vector
-import qualified Data.Vector.Generic as Generic
-import qualified Data.Vector.Mutable as MVector
-import qualified Data.Vector.Unboxed as Unboxed
+import Control.Monad.Random.Class (MonadRandom, getRandom, getRandomR)
+import Control.Monad.ST.Safe
+import Data.Array.IArray
+import Data.Array.MArray.Safe
+import Data.Array.Unboxed
+import Data.Array.ST.Safe
 import System.Random (RandomGen, random, randomR)
 
 import Data.Distribution.Core
@@ -34,16 +33,18 @@ import Data.Distribution.Core
 --   Can be created in linear time from distributions
 --   and sampled in constant time.
 data Generator a = Generator
-    { probabilities :: !(Unboxed.Vector Double)
+    { capacity :: !Int
+      -- ^ Number of buckets.
+    , probabilities :: !(UArray Int Double)
       -- ^ Probability to stay in the bucket.
-    , values :: !(Vector a)
+    , values :: !(Array Int a)
       -- ^ Value in the bucket.
-    , indexes :: !(Unboxed.Vector Int)
+    , indexes :: !(UArray Int Int)
       -- ^ Index of the "guest" value. Used when the bucket is left.
     }
 
 instance Functor Generator where
-    fmap f (Generator ps vs is) = Generator ps (fmap f vs) is
+    fmap f (Generator n ps vs is) = Generator n ps (fmap f vs) is
 
 -- | Creates a generator from the given non-empty distribution.
 --
@@ -67,7 +68,7 @@ fromDistribution d = case toList d of
     -- is the probability of the value in the input distribution.
     generate xs = runST $ do
         -- The values are directly from the list.
-        let vs = Vector.fromList as
+        let vs = listArray (0, n - 1) as
 
         -- The probability to stay in the bucket is @n@ times the
         -- probability in the distribution. This is due to the fact
@@ -76,12 +77,12 @@ fromDistribution d = case toList d of
         -- during the equilibration phase.
         -- In case the value exceed @1@, the bucket is said to be overfilled,
         -- and if its is strictly less than @1@, underfilled.
-        ps <- Vector.thaw $ Vector.fromList sqs
+        ps <- stArrayFromList sqs
 
         -- The indexes of "guest" values.
         -- The correct indexes will be set during the equilibration phase.
         -- Guest values are used by underfilled buckets.
-        is <- MVector.replicate n 0
+        is <- stuArray 0
 
         -- The 'go' function is used to equilibrate the buckets, by assigning
         -- unused space in underfilled buckets to overfilled buckets.
@@ -99,13 +100,13 @@ fromDistribution d = case toList d of
         -- bucket.
         let go (o : os) (u : us) = do
                 -- First, we register o as the guest of u.
-                MVector.write is u o
+                writeArray is u o
 
                 -- We then update the probability of o.
-                po <- MVector.read ps o
-                pu <- MVector.read ps u
+                po <- readArray ps o
+                pu <- readArray ps u
                 let po' = po - (1 - pu)
-                MVector.write ps o po'
+                writeArray ps o po'
 
                 -- We recurse on the new overfilled and underfilled buckets.
                 if | po' < 1 -> go os (o : us)  -- We took too much from o.
@@ -123,10 +124,14 @@ fromDistribution d = case toList d of
         go os us
 
         -- Each bucket is now completely filled. We freeze the result.
-        fps <- Vector.freeze ps
-        fis <- Vector.freeze is
+        fps <- freeze ps
+        fis <- freeze is
         return $ Generator
-            (Generic.convert $ fmap fromRational fps) vs (Generic.convert fis)
+            n
+            (listArray (0, n - 1)
+                (fmap fromRational $ elems (fps :: Array Int Rational)))
+            vs
+            fis
       where
         -- Separating the values from their probability.
         (as, qs) = unzip xs
@@ -137,6 +142,12 @@ fromDistribution d = case toList d of
 
         -- Indexed and scaled probabilities.
         iqs = zip [0 ..] sqs
+
+    stArrayFromList :: [e] -> ST s (STArray s Int e)
+    stArrayFromList xs = newListArray (0, n - 1) xs
+
+    stuArray :: e -> ST s (STArray s Int e)
+    stuArray x = newArray (0, n - 1) x
 
 -- | Safe version of 'fromDistribution'. Returns @Nothing@ when the
 --   given distribution is empty.
@@ -150,12 +161,12 @@ safeFromDistribution d = if size d == 0
 --   Runs in constant @O(1)@ time.
 getSample :: MonadRandom m => Generator a -> m a
 getSample g = do
-    let n = Vector.length $ values g
+    let n = capacity g
     u <- getRandom
     j <- getRandomR (0, n - 1)
-    let i = if u < probabilities g Unboxed.! j
+    let i = if u < probabilities g ! j
                 then j
-                else indexes g Unboxed.! j
+                else indexes g ! j
     return $ values g ! i
 
 -- | Picks a random value from the generator.
@@ -164,9 +175,9 @@ getSample g = do
 sample :: RandomGen g => Generator a -> g -> (a, g)
 sample g k = (values g ! i, k'')
   where
-    n = Vector.length $ values g
+    n = capacity g
     (j, k') = randomR (0, n - 1) k
     (u, k'') = random k'
-    i = if u < probabilities g Unboxed.! j
+    i = if u < probabilities g ! j
             then j
-            else indexes g Unboxed.! j
+            else indexes g ! j
