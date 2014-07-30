@@ -176,8 +176,8 @@ support = Map.keysSet . toMap
 -- | Distribution that assigns to each @value@ from the given @(value, weight)@
 --   pairs a probability proportional to @weight@.
 --
---   >>> probability (> 'A') $ fromList [('A', 1), ('B', 2), ('C', 1)]
---   3 % 4
+--   >>> fromList [('A', 1), ('B', 2), ('C', 1)]
+--   fromList [('A',1 % 4),('B',1 % 2),('C',1 % 4)]
 --
 --   Values may appear multiple times in the list. In this case, their total
 --   weight is the sum of the different associated weights.
@@ -195,10 +195,8 @@ fromList xs = Distribution $ Map.fromDistinctAscList $ zip vs scaledPs
 
 -- | Distribution that assigns to @x@ the probability of @1@.
 --
--- >>> probability (== 0) $ always 0
--- 1 % 1
--- >>> probability (/= 0) $ always 0
--- 0 % 1
+-- >>> always 0
+-- fromList [(0,1 % 1)]
 always :: a -> Distribution a
 always x = Distribution $ Map.singleton x 1
 
@@ -206,8 +204,8 @@ always x = Distribution $ Map.singleton x 1
 --   The probability of each element is proportional
 --   to its number of appearance in the list.
 --
---   >>> probability (== 6) $ uniform [1 .. 6]
---   1 % 6
+--   >>> uniform [1 .. 6]
+--   fromList [(1,1 % 6),(2,1 % 6),(3,1 % 6),(4,1 % 6),(5,1 % 6),(6,1 % 6)]
 uniform :: (Ord a) => [a] -> Distribution a
 uniform xs = fromList $ fmap (\ x -> (x, p)) xs
   where
@@ -225,19 +223,16 @@ chance p = fromList [(False, 1 - p'), (True, p')]
 
 -- | Applies a function to the values in the distribution.
 --
---   >>> probability (== 1) $ select abs $ uniform [-1, 0, 1]
---   2 % 3
+--   >>> select abs $ uniform [-1, 0, 1]
+--   fromList [(0,1 % 3),(1,2 % 3)]
 select :: Ord b => (a -> b) -> Distribution a -> Distribution b
 select f (Distribution xs) = Distribution $ Map.mapKeysWith (+) f xs
 
 -- | Returns a new distribution conditioning on the predicate holding
 --   on the value.
 --
---   >>> let d = assuming (> 2) $ uniform [1 .. 6]
---   >>> probability (== 2) d
---   0 % 1
---   >>> probability (== 3) d
---   1 % 4
+--   >>> assuming (> 2) $ uniform [1 .. 6]
+--   fromList [(3,1 % 4),(4,1 % 4),(5,1 % 4),(6,1 % 4)]
 --
 --   Note that the resulting distribution will be empty
 --   if the predicate does not hold on any of the values.
@@ -280,8 +275,8 @@ combine dws = Distribution $ Map.unionsWith (+) $ zipWith go ds ps
 -- | Binomial distribution.
 --   Assigns for each number of successes its probability.
 --
---   >>> probability (== 1) $ trials 2 $ uniform [True, False]
---   1 % 2
+--   >>> trials 2 $ uniform [True, False]
+--   fromList [(0,1 % 4),(1,1 % 2),(2,1 % 4)]
 trials :: Int -> Distribution Bool -> Distribution Int
 trials n d = Distribution $ Map.fromDistinctAscList $ if
     | p == 1    -> [(n, 1)]
@@ -308,14 +303,14 @@ trials n d = Distribution $ Map.fromDistinctAscList $ if
 -- | Takes `n` samples from the distribution and returns the distribution
 --   of their sum.
 --
---   >>> probability (> 12) $ 3 `times` uniform [1 .. 6]
---   7 % 27
+--   >>> times 2 $ uniform [1 .. 3]
+--   fromList [(2,1 % 9),(3,2 % 9),(4,1 % 3),(5,2 % 9),(6,1 % 9)]
 --
 --   This function makes use of the more efficient @trials@ functions
 --   for input distributions of size @2@.
 --
---   >>> fromRational $ probability (> 5600) $ 1000 `times` uniform [1, 10]
---   0.23352256082639306
+--   >>> size $ times 10000 $ uniform [1, 10]
+--   10001
 times :: (Num a, Ord a) => Int -> Distribution a -> Distribution a
 n `times` d
     | s == 0 = d
@@ -351,11 +346,8 @@ n `times` d
 -- | Computes for each value in the distribution a new distribution, and then
 --   combines those distributions, giving each the weight of the original value.
 --
---   >>> let d = uniform [1 .. 6] `andThen` (\ n -> uniform [1 .. n])
---   >>> probability (== 6) d
---   1 % 36
---   >>> probability (== 1) d
---   49 % 120
+--   >>> uniform [1 .. 3] `andThen` (\ n -> uniform [1 .. n])
+--   fromList [(1,11 % 18),(2,5 % 18),(3,1 % 9)]
 --
 --   See the 'on' function for a convenient way to chain distributions.
 infixl 7 `andThen`
@@ -369,9 +361,8 @@ andThen (Distribution xs) f = Distribution $
 --   A use case for 'on' is to use it in conjunction with 'andThen'
 --   to combine distributions.
 --
---   >>> let d = uniform [1 .. 6] `andThen` (+) `on` uniform [1 .. 6]
---   >>> probability (== 12) d
---   1 % 36
+--   >>> uniform [1 .. 3] `andThen` (+) `on` uniform [1 .. 2]
+--   fromList [(2,1 % 6),(3,1 % 3),(4,1 % 3),(5,1 % 6)]
 infixl 8 `on`
 on :: Ord c => (a -> b -> c) -> Distribution b -> a -> Distribution c
 on f d x = select (f x) d
