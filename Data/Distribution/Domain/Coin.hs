@@ -2,7 +2,7 @@
 
 -- | This modules provides distributions from coins and
 --   functions on coins.
-module Data.Distribution.Coin
+module Data.Distribution.Domain.Coin
     ( -- * Coin
       Coin
     , CoinSide (..)

@@ -2,7 +2,7 @@
 
 -- | This modules provides distributions from dice and
 --   functions on dice.
-module Data.Distribution.Dice
+module Data.Distribution.Domain.Dice
     ( -- * Dice
       Dice
     , dice
