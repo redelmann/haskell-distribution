@@ -25,7 +25,7 @@ import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as Generic
 import qualified Data.Vector.Mutable as MVector
 import qualified Data.Vector.Unboxed as Unboxed
-import System.Random
+import System.Random (RandomGen, random, randomR)
 
 import Data.Distribution
 
