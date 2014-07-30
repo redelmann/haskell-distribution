@@ -10,6 +10,7 @@
 module Data.Distribution
     ( -- * Distribution
       Distribution
+    , toMap
     , toList
     , Probability
       -- ** Creation
@@ -59,8 +60,12 @@ import Data.Set (Set)
 --   However, 'select' is the equivalent of @fmap@ for distributions
 --   and 'always' and 'andThen' are respectively the equivalent of @return@
 --   and @>>=@.
-newtype Distribution a = Distribution { getDistribution :: Map a Probability }
-    deriving Eq
+newtype Distribution a = Distribution
+    { toMap :: Map a Probability
+      -- ^ Converts the distribution to a mapping from values to their
+      --   probability. Values with probability @0@ are not included
+      --   in the resulting mapping.
+    } deriving Eq
 
 instance Show a => Show (Distribution a) where
     show d = "fromList " ++ show (toList d)
@@ -326,7 +331,7 @@ andThen :: Ord b => Distribution a -> (a -> Distribution b) -> Distribution b
 andThen (Distribution xs) f = Distribution $
     Map.unionsWith (+) $ fmap go $ Map.toList xs
   where
-    go (x, p) = fmap (* p) $ getDistribution $ f x
+    go (x, p) = fmap (* p) $ toMap $ f x
 
 -- | Utility to partially apply a function on a distribution.
 --   A use case for 'on' is to use in conjunction with 'andThen'
@@ -367,7 +372,7 @@ combine dws = Distribution $ Map.unionsWith (+) $ zipWith go ds ps
 -- | Returns the number of elements with non-zero probability
 --   in the distribution.
 size :: Distribution a -> Int
-size (Distribution xs) = Map.size xs
+size = Map.size . toMap
 
 -- | Probability that a predicate holds on the distribution.
 --
@@ -377,14 +382,13 @@ size (Distribution xs) = Map.size xs
 --   Takes @O(n)@ time. See 'probabilityAt' and 'probabilityIn'
 --   for a more efficient ways to query elements and ranges.
 probability :: (a -> Bool) -> Distribution a -> Probability
-probability f (Distribution xs) = sum $ Map.elems $
-    Map.filterWithKey (const . f) xs
+probability f = sum . Map.elems . Map.filterWithKey (const . f) . toMap
 
 -- | Probability of a given value.
 --
 --   Takes @O(log(n))@ time.
 probabilityAt :: Ord a => a -> Distribution a -> Probability
-probabilityAt x (Distribution xs) = case Map.lookup x xs of
+probabilityAt x d = case Map.lookup x (toMap d) of
     Just p -> p
     Nothing -> 0
 
@@ -394,12 +398,12 @@ probabilityAt x (Distribution xs) = case Map.lookup x xs of
 --   Takes @O(log(n) + m)@ time, where @n@ is the size of
 --   the distribution and @m@ the size of the range.
 probabilityIn :: Ord a => (a, a) -> Distribution a -> Probability
-probabilityIn (low, high) (Distribution xs)
+probabilityIn (low, high) d
     | low > high = 0
-    | low == high = probabilityAt low (Distribution xs)
+    | low == high = probabilityAt low d
     | otherwise = Map.foldl' (+) (ph + pl) ps
   where
-    (_, ml, hs) = Map.splitLookup low xs
+    (_, ml, hs) = Map.splitLookup low $ toMap d
     (ps, mh, _) = Map.splitLookup high hs
 
     pl = fromMaybe 0 ml
@@ -412,9 +416,9 @@ probabilityIn (low, high) (Distribution xs)
 --
 -- Empty distributions have an expectation of @0@.
 expectation :: (Real a, Fractional b) => Distribution a -> b
-expectation (Distribution xs) = fromRational $ sum $
-    fmap (uncurry (*) . second toRational) $
-    Map.toList $ Map.mapKeysWith (+) toRational xs
+expectation = fromRational . sum .
+    fmap (uncurry (*) . second toRational) .
+    Map.toList . Map.mapKeysWith (+) toRational . toMap
 
 -- | Returns the variance of a distribution.
 --
@@ -480,11 +484,11 @@ mean = expectation
 
 -- | Returns all values whose probability is maximal.
 modes :: Distribution a -> [a]
-modes (Distribution xs) = map fst $ filter ((m ==) . snd) ys
+modes d = map fst $ filter ((m ==) . snd) xs
   where
-    ys = Map.toAscList xs
-    m = maximum $ Map.elems xs
+    xs = toList d
+    m = maximum $ map snd xs
 
 -- | Values in the distribution with non-zero probability.
 support :: Distribution a -> Set a
-support (Distribution xs) = Map.keysSet xs
+support = Map.keysSet . toMap
