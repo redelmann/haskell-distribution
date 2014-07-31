@@ -42,7 +42,7 @@ import Data.Distribution.Measure
 data PlotOptions a = PlotOptions
     { getAggregator :: Aggregator a
       -- ^ Aggregator to apply on the values.
-      --   Defaults to @id@.
+      --   Defaults to identity.
     , getTitle :: String
       -- ^ Title of the plot.
       --   Defaults to the empty string.
@@ -171,10 +171,8 @@ plotWith options file distributions = void $ renderableToFile env
         makeStyle c = (solidFillStyle c, Nothing)
         barStyle = if getStacked options then BarsStacked else BarsClustered
 
-    normal = chart
+    normal = toRenderable layout
       where
-        chart = toRenderable layout
-
         xvalues = domain
 
         yvalues = transpose $ map
@@ -191,10 +189,8 @@ plotWith options file distributions = void $ renderableToFile env
              $ plot_bars_titles .~ getLabels options
              $ baseBars
 
-    inversed = chart
+    inversed = toRenderable layout
       where
-        chart = toRenderable layout
-
         xvalues = getLabels options
 
         yvalues = map (modifyProbabilities (getAggregator options) .
