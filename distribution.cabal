@@ -1,6 +1,6 @@
 
 -- The name of the package.
-name:                haskell-distribution
+name:                distribution
 
 -- The package version.  See the Haskell package versioning policy (PVP)
 -- for standards guiding when and how versions should be incremented.
