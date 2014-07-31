@@ -1,5 +1,5 @@
-`distribution` - Probability distributions in Haskell
-=====================================================
+Haskell `distribution` package
+==============================
 
 `distribution` is a package for manipulating finite discrete probability distributions.
 It supports transformations of distributions, measurements, efficient sampling and plotting.
