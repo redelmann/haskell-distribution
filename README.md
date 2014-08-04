@@ -2,29 +2,30 @@ Haskell `distribution` package
 ==============================
 
 `distribution` is a package for manipulating finite discrete probability distributions.
-It supports transformations of distributions, measurements, efficient sampling and plotting.
-
+It supports transformations of distributions, measurements and efficient sampling.
+Plotting distributions as bar charts is also possible using the related `distribution-plot` package.
 
 Overview
 --------
 
-The *distribution* package contains several modules:
+The `distribution` package contains several modules:
 
 * `Data.Distribution.Core` which defines distributions and combinators over distributions,
-* `Data.Distribution.Measure` which includes measures such as probability, expectation and variance, 
+* `Data.Distribution.Measure` which includes measures such as probability, expectation and variance,
 * `Data.Distribution.Sample` which implements Walker's [Alias method](http://en.wikipedia.org/wiki/Alias_method) for efficiently sampling random values from distributions.
 
 In addition, some domain specific distributions and functions are proposed by default:
 
 * `Data.Distribution.Domain.Dice` defines dice and functions on dice.
 * `Data.Distribution.Domain.Coin` defines the same for coins.
-
-On top of that, the package supports visualization of distributions as charts:
-
-* `Data.Distribution.Plot` defines functions for plotting distributions to files,
 * `Data.Distribution.Aggregator` contains functions for transforming distributions to cumulative distributions and other useful methods.
 
 Each module and each function is extensively documented.
+
+Related packages
+----------------
+
+See the `distribution-plot` package for plotting distributions to files.
 
 License
 -------

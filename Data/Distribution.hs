@@ -49,6 +49,8 @@ module Data.Distribution
       --   Here is a list of such modules:
       --
       --       * "Data.Distribution.Plot" : For plotting distributions.
+      --                                    This module is part of the
+      --                                    @distribution-plot@ package.
       --
       --       * "Data.Distribution.Domain.Dice" : Distributions over dice.
       --
@@ -160,7 +162,8 @@ module Data.Distribution
 
       -- ** Plotting
 
-      -- | Have a look at the "Data.Distribution.Plot" if you are interested
+      -- | Have a look at the "Data.Distribution.Plot" module made available
+      --   by the @distribution-plot@ package if you are interested
       --   in plotting distributions to files.
     ) where
 
