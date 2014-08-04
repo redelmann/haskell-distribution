@@ -25,7 +25,7 @@ Each module and each function is extensively documented.
 Related packages
 ----------------
 
-See the `distribution-plot` package for plotting distributions to files.
+See the `distribution-plot` package for plotting distributions to files. This package is also [available on GitHub](https://github.com/redelmann/haskell-distribution-plot).
 
 License
 -------
