@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 {- Copyright 2014 Romain Edelmann
 
@@ -32,7 +33,7 @@ module Data.Distribution.Sample
     ) where
 
 import Control.Monad.Random.Class (MonadRandom, getRandom, getRandomR)
-import Control.Monad.ST.Safe
+import Control.Monad.ST
 import Data.Array.IArray
 import Data.Array.MArray.Safe
 import Data.Array.Unboxed
