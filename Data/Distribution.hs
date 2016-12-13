@@ -43,6 +43,10 @@ module Data.Distribution
       -- | The "Data.Distribution.Sample" module provides ways to efficiently
       --   randomly sample values from distributions.
 
+    , module Data.Distribution.Monadic
+      -- | The "Data.Distribution.Monadic" module provides a monadic interface
+      --   to build distributions.
+
       -- * Other modules
 
       -- | Not all modules related to distributions are exported by default.
@@ -169,7 +173,9 @@ module Data.Distribution
 
 import System.Random (mkStdGen)  -- For doctest.
 
+import Data.Distribution.Aggregator
 import Data.Distribution.Core
 import Data.Distribution.Measure
-import Data.Distribution.Aggregator
+import Data.Distribution.Monadic
 import Data.Distribution.Sample
+
