@@ -176,8 +176,8 @@ safeFromDistribution d = if size d == 0
 getSample :: MonadRandom m => Generator a -> m a
 getSample g = do
     let n = capacity g
-    u <- getRandom
     j <- getRandomR (0, n - 1)
+    u <- getRandom
     let i = if u < probabilities g ! j
                 then j
                 else indexes g ! j
