@@ -16,35 +16,35 @@
 
 -- | This modules provides a monadic interface to build distributions.
 module Data.Distribution.Monadic 
-    ( DistributionI, from, run ) where
+    ( Experiment, from, run ) where
 
 import Data.Distribution.Core
 
 -- | Monadic description of distributions.
-data DistributionI a where
-  Return :: a -> DistributionI a
-  Bind :: DistributionI a -> (a -> DistributionI b) -> (DistributionI b)
-  Prim :: (Ord a) => Distribution a -> DistributionI a
+data Experiment a where
+  Return :: a -> Experiment a
+  Bind :: Experiment b -> (b -> Experiment a) -> Experiment a
+  Prim :: (Ord a) => Distribution a -> Experiment a
 
-instance Functor DistributionI where
+instance Functor Experiment where
   fmap f d = Bind d (\ x -> Return (f x))
 
-instance Applicative DistributionI where
+instance Applicative Experiment where
   pure x = Return x
   df <*> d = Bind df (\ f -> Bind d (\ x -> Return (f x)))
 
-instance Monad DistributionI where
+instance Monad Experiment where
   return x = Return x
-  d >>= f = Bind d f 
+  d >>= f = Bind d f
 
 -- | Converts a concrete distribution into its
 --   monadic representation.
-from :: (Ord a) => Distribution a -> DistributionI a
+from :: (Ord a) => Distribution a -> Experiment a
 from d = Prim d
 
 -- | Converts the monadic description of the distribution 
 --   to a concrete distribution.
-run :: (Ord a) => DistributionI a -> Distribution a
+run :: (Ord a) => Experiment a -> Distribution a
 run (Return x) = always x
 run (Bind (Return x) f) = run (f x)
 run (Bind (Bind i g) f) = run (Bind i (\ x -> Bind (g x) f))
