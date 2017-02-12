@@ -36,14 +36,16 @@ module Data.Distribution.Core
     , select
     , assuming
       -- ** Combination
-    , combine
+    , combineWith
       -- ** Sequences
       -- *** Independant experiments
     , trials
     , times
+    , iid
       -- *** Dependant experiments
     , andThen
-    , on
+      -- ** Utilities
+    , isValid
     ) where
 
 import Control.Arrow (second)
@@ -134,15 +136,15 @@ instance (Ord a, Num a) => Num (Distribution a) where
     abs = select abs
     signum = select signum
     negate = select negate
-    d1 + d2 = d1 `andThen` (+) `on` d2
-    d1 - d2 = d1 `andThen` (-) `on` d2
-    d1 * d2 = d1 `andThen` (*) `on` d2
+    d1 + d2 = combineWith (+) d1 d2
+    d1 - d2 = combineWith (-) d1 d2
+    d1 * d2 = combineWith (*) d1 d2
 
 -- Binary operations on distributions are defined to
 -- be the binary operation on each pair of elements.
 instance (Ord a, Fractional a) => Fractional (Distribution a) where
     fromRational = always . fromRational
-    d1 / d2 = d1 `andThen` (/) `on` d2
+    d1 / d2 = combineWith (+) d1 d2
     recip = select recip
 
 -- Binary operations on distributions are defined to
@@ -152,8 +154,8 @@ instance (Ord a, Floating a) => Floating (Distribution a) where
     exp = select exp
     sqrt = select sqrt
     log = select log
-    d1 ** d2 = d1 `andThen` (**) `on` d2
-    d1 `logBase` d2 = d1 `andThen` logBase `on` d2
+    d1 ** d2 = combineWith (**) d1 d2
+    d1 `logBase` d2 = combineWith logBase d1 d2
     sin = select sin
     tan = select tan
     cos = select cos
@@ -169,7 +171,7 @@ instance (Ord a, Floating a) => Floating (Distribution a) where
 
 instance (Ord a, Monoid a) => Monoid (Distribution a) where
     mempty = always mempty
-    mappend d1 d2 = d1 `andThen` mappend `on` d2
+    mappend d1 d2 = combineWith mappend d1 d2
 
 -- | Converts the distribution to a list of increasing values whose probability
 --   is greater than @0@. To each value is associated its probability.
@@ -257,7 +259,7 @@ select f (Distribution xs) = Distribution $ Map.mapKeysWith (+) f xs
 --   >>> assuming (> 2) $ uniform [1 .. 6]
 --   fromList [(3,1 % 4),(4,1 % 4),(5,1 % 4),(6,1 % 4)]
 --
---   Note that the resulting distribution will be empty
+--   Note that the resulting distribution will be invalid
 --   if the predicate does not hold on any of the values.
 --
 --   >>> assuming (> 7) $ uniform [1 .. 6]
@@ -272,25 +274,12 @@ assuming f (Distribution xs) = Distribution $ fmap adjust filtered
 
 -- Combination
 
-
--- | Combines multiple weighted distributions into a single distribution.
---
---   The probability of each element is the weighted sum of the element's
---   probability in every distribution.
---
---   >>> combine [(always 2, 1 / 3), (uniform [1..6], 2 / 3)]
---   fromList [(1,1 % 9),(2,4 % 9),(3,1 % 9),(4,1 % 9),(5,1 % 9),(6,1 % 9)]
---
---   Note that the weights do not have to sum up to @1@. Distributions with
---   negative or null weight will be ignored.
-combine :: (Ord a, Real p) => [(Distribution a, p)] -> Distribution a
-combine dws = Distribution $ Map.unionsWith (+) $ zipWith go ds ps
-  where
-    (ds, ws) = unzip $ filter ((> 0) . snd) $ map (second toRational) dws
-    w = sum ws
-    ps = map (/ w) ws
-    go (Distribution xs) p = fmap (* p) xs
-
+combineWith :: (Ord b) => (a -> a -> b) -> Distribution a -> Distribution a -> Distribution b
+combineWith f (Distribution xs) (Distribution ys) = Distribution $ Map.unionsWith (+) $ do
+    (x, p) <- Map.toList xs
+    return $ Map.fromListWith (+) $ do
+        (y, q) <- Map.toList ys
+        return (f x y, p * q)
 
 -- Sequences
 
@@ -363,13 +352,29 @@ n `times` d
             let p' = 2 * p * q
             return (y + x, p')
 
+iid :: (Ord a) => (a -> a -> a) -> Int -> Distribution a -> Distribution a
+iid f n d
+    | n <= 0 = error "Called iid with a non-positive number of trials."
+    | otherwise = go n
+    where
+      go 1 = d
+      go m =
+        let (i, j) = quotRem m 2 
+            sub = go i
+            combined = combineWith f sub sub
+        in if j == 0
+          then combined
+          else combineWith f combined d
+
+
 -- | Computes for each value in the distribution a new distribution, and then
 --   combines those distributions, giving each the weight of the original value.
 --
 --   >>> uniform [1 .. 3] `andThen` (\ n -> uniform [1 .. n])
 --   fromList [(1,11 % 18),(2,5 % 18),(3,1 % 9)]
 --
---   See the 'on' function for a convenient way to chain distributions.
+--   See the 'Experiment' data type in the 'Data.Distribution.Monadic' module
+--   for a more "natural" monadic interface. 
 infixl 7 `andThen`
 andThen :: Ord b => Distribution a -> (a -> Distribution b) -> Distribution b
 andThen (Distribution xs) f = Distribution $
@@ -377,12 +382,10 @@ andThen (Distribution xs) f = Distribution $
   where
     go (x, p) = fmap (* p) $ toMap $ f x
 
--- | Utility to partially apply a function on a distribution.
---   A use case for 'on' is to use it in conjunction with 'andThen'
---   to combine distributions.
+
+-- | Determines if a distribution is valid.
 --
---   >>> uniform [1 .. 3] `andThen` (+) `on` uniform [1 .. 2]
---   fromList [(2,1 % 6),(3,1 % 3),(4,1 % 3),(5,1 % 6)]
-infixl 8 `on`
-on :: Ord c => (a -> b -> c) -> Distribution b -> a -> Distribution c
-on f d x = select (f x) d
+--   A distribution is valid if and only if its domain is non-empty.
+--   Invalid distributions may arise from the use of 'assuming' for instance.
+isValid :: Distribution a -> Bool
+isValid (Distribution xs) = not $ Map.null xs
