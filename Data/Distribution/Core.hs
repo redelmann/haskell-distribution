@@ -35,6 +35,7 @@ module Data.Distribution.Core
       -- ** Transformation
     , select
     , assuming
+    , observing
       -- ** Combination
     , combineWith
       -- ** Sequences
