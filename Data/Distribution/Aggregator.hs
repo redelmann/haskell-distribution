@@ -48,11 +48,14 @@ newtype Aggregator a = Aggregator
       --   of probabilities.
     }
 
--- | 'mempty' is the aggregator that leaves probabilities untouched,
---   and 'mappend' compose aggregators.
+-- | Compose aggregators with `(<>)`
+instance Semigroup (Aggregator a) where
+    (Aggregator f) <> g = Aggregator (f . aggregateWith g)
+
+-- | 'mempty' is the aggregator that leaves probabilities untouched
 instance Monoid (Aggregator a) where
     mempty = Aggregator (map snd)
-    mappend (Aggregator f) g = Aggregator (f . aggregateWith g)
+    mappend = (<>)
 
 -- | Applies an aggregator on a list of values tagged with their probability.
 --   The values themselves are left unchanged.
