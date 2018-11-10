@@ -170,9 +170,12 @@ instance (Ord a, Floating a) => Floating (Distribution a) where
     atanh = select atanh
     acosh = select acosh
 
+instance (Ord a, Semigroup a) => Semigroup (Distribution a) where
+    d1 <> d2 = combineWith (<>) d1 d2
+
 instance (Ord a, Monoid a) => Monoid (Distribution a) where
     mempty = always mempty
-    mappend d1 d2 = combineWith mappend d1 d2
+    mappend = (<>)
 
 -- | Converts the distribution to a list of increasing values whose probability
 --   is greater than @0@. To each value is associated its probability.
