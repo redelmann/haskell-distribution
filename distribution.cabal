@@ -61,7 +61,7 @@ library
   -- Other library packages from which modules are imported.
   build-depends:       array >=0.4,
                        base >=4.5 && <5,
-                       containers ==0.5.*,
+                       containers ==0.6.*,
                        MonadRandom >=0.4,
-                       random ==1.1.*
+                       random ==1.2.*
 
